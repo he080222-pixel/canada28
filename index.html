@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>加拿大28 - 模拟演示版</title>
+<title>加拿大28 - 全网同步演示版</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Yahei",sans-serif}
 body{background-color:#f0f2f5;display:flex;justify-content:center;padding:20px 10px;min-height:100vh}
@@ -61,9 +61,9 @@ body{background-color:#f0f2f5;display:flex;justify-content:center;padding:20px 1
   <div class="status-bar">
     <div class="status-indicator">
       <div class="dot" id="net-dot"></div>
-      <span id="net-status">正在读取数据...</span>
+      <span id="net-status">正在同步全网数据...</span>
     </div>
-    <span style="color:#aaa;">本地模拟</span>
+    <span style="color:#aaa;">全网同步</span>
   </div>
   <div class="header-section">
     <div class="title-area">
@@ -112,8 +112,11 @@ body{background-color:#f0f2f5;display:flex;justify-content:center;padding:20px 1
   </div>
 </div>
 <script>
-/* ===== 模拟配置 ===== */
-var DRAW_CYCLE_SEC = 40;
+/* ===== 核心配置 ===== */
+var DRAW_CYCLE_SEC = 40; // 每期40秒
+var BASE_PERIOD = 3496370; // 假定的基础期号
+// 选定一个过去的基准时间点，比如 2023-01-01 00:00:00，用这个时间对齐期号
+var BASE_TIME = 1672531200000; 
 
 var currentPeriod = 0;
 var lastDrawNbr = null;
@@ -186,90 +189,81 @@ function renderTrendTable(isNew){
   dom.tbody.innerHTML = html;
 }
 
-function resetCountdown(total){
-  if(timerObj) clearInterval(timerObj);
-  countdown = total;
-  function upd(){
-    dom.timerMin.innerText = String(Math.floor(countdown / 60)).padStart(2, '0');
-    dom.timerSec.innerText = String(countdown % 60).padStart(2, '0');
-  }
-  upd();
-  timerObj = setInterval(function(){
-    if(countdown > 0){
-      countdown--; upd();
-      if(countdown <= 5) dom.timerSec.classList.add('flash');
-      else dom.timerSec.classList.remove('flash');
-    } else {
-      clearInterval(timerObj);
-      dom.timerSec.classList.remove('flash');
-      generateMockData();
-    }
-  }, 1000);
+// ======== 核心算法：根据期号生成固定的号码 ========
+// 只要期号相同，任何人算出来的号码绝对一样
+function getNumsByPeriod(periodStr) {
+  var seed = parseInt(periodStr, 10);
+  var rand = function() {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  return [
+    Math.floor(rand() * 10),
+    Math.floor(rand() * 10),
+    Math.floor(rand() * 10)
+  ];
 }
 
-// ======== 核心模拟开奖数据生成器 ========
-function generateMockData(){
-  setStatus('', '正在开奖...');
+// ======== 时间驱动引擎 ========
+function tick() {
+  var now = Date.now();
+  // 算出从基准时间到现在，一共经过了多少个开奖周期
+  var elapsedCycles = Math.floor((now - BASE_TIME) / (DRAW_CYCLE_SEC * 1000));
   
-  setTimeout(function(){
-    if (!lastDrawNbr) {
-        lastDrawNbr = "3496370";
-    } else {
-        lastDrawNbr = (parseInt(lastDrawNbr) + 1).toString();
-    }
-    currentPeriod = parseInt(lastDrawNbr, 10);
-    
-    var n1 = Math.floor(Math.random() * 10);
-    var n2 = Math.floor(Math.random() * 10);
-    var n3 = Math.floor(Math.random() * 10);
-    var sum = n1 + n2 + n3;
-    var nums = [n1, n2, n3];
+  // 计算当前应该开出的期号
+  var currentNbr = (BASE_PERIOD + elapsedCycles).toString();
+  
+  // 计算距离下一期的剩余时间
+  var nextDrawTime = BASE_TIME + (elapsedCycles + 1) * (DRAW_CYCLE_SEC * 1000);
+  countdown = Math.ceil((nextDrawTime - now) / 1000);
+  
+  if (countdown > DRAW_CYCLE_SEC) countdown = DRAW_CYCLE_SEC; // 防止时间误差导致的溢出
+  if (countdown <= 0) countdown = 0;
 
-    setStatus('online', '模拟数据正常');
+  // 更新倒计时 UI
+  dom.timerMin.innerText = String(Math.floor(countdown / 60)).padStart(2, '0');
+  dom.timerSec.innerText = String(countdown % 60).padStart(2, '0');
+  if(countdown <= 5) dom.timerSec.classList.add('flash');
+  else dom.timerSec.classList.remove('flash');
+
+  // 如果期号变了，说明刚开了新的一期
+  if (lastDrawNbr !== currentNbr) {
+    lastDrawNbr = currentNbr;
+    currentPeriod = parseInt(currentNbr, 10);
+    
+    // 生成这一期的号码
+    var nums = getNumsByPeriod(currentNbr);
+    var sum = nums[0] + nums[1] + nums[2];
+
+    // 更新头部展示
     dom.period.innerText = String(currentPeriod + 1); // 显示下一期
     updateResultUI(nums, sum);
+    setStatus('online', '数据同步正常');
 
-    // 存入历史记录
-    historyData.push({period:lastDrawNbr, nums:nums, sum:sum});
-    
-    // === 关键：把最新数据保存到手机本地 ===
-    // 为了防止存太多撑爆内存，最多只保留最近 200 期
-    if (historyData.length > 200) {
-        historyData = historyData.slice(-200); 
-    }
-    localStorage.setItem('c28_history', JSON.stringify(historyData));
-    localStorage.setItem('c28_lastNbr', lastDrawNbr);
-
+    // 插入历史走势
+    historyData.push({period: currentNbr, nums: nums, sum: sum});
+    // 保持历史记录不要无限增加，最多50条
+    if(historyData.length > 50) historyData.shift(); 
     renderTrendTable(true);
-    resetCountdown(DRAW_CYCLE_SEC);
-  }, 500); 
+  }
 }
 
-// 启动
+// 启动引擎
 window.onload = function(){
-  // === 关键：读取手机本地的历史数据 ===
-  var savedHistory = localStorage.getItem('c28_history');
-  var savedNbr = localStorage.getItem('c28_lastNbr');
-
-  if (savedHistory && savedNbr) {
-      // 如果以前存过，就读出来直接显示
-      historyData = JSON.parse(savedHistory);
-      lastDrawNbr = savedNbr;
-      currentPeriod = parseInt(lastDrawNbr, 10);
-      
-      // 恢复上一次的号码展示
-      var lastItem = historyData[historyData.length - 1];
-      dom.period.innerText = String(currentPeriod + 1);
-      updateResultUI(lastItem.nums, lastItem.sum);
-      renderTrendTable(false);
-      setStatus('online', '已恢复本地数据');
-      
-      // 开始倒计时，准备下一期
-      resetCountdown(DRAW_CYCLE_SEC);
-  } else {
-      // 如果没存过，就立刻开始第一局模拟
-      generateMockData();
+  // 为了页面一打开有走势图，先倒推 20 期数据出来
+  var now = Date.now();
+  var elapsedCycles = Math.floor((now - BASE_TIME) / (DRAW_CYCLE_SEC * 1000));
+  
+  for (var i = 20; i > 0; i--) {
+    var p = (BASE_PERIOD + elapsedCycles - i).toString();
+    var n = getNumsByPeriod(p);
+    historyData.push({period: p, nums: n, sum: n[0]+n[1]+n[2]});
   }
+  
+  // 启动每秒跳动
+  if (timerObj) clearInterval(timerObj);
+  timerObj = setInterval(tick, 1000);
+  tick(); // 立即执行一次
 };
 </script>
 </body>
