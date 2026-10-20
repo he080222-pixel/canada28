@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>加拿大28</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Yahei",sans-serif}
+body{background-color:#f0f2f5;display:flex;justify-content:center;padding:20px 10px;min-height:100vh}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background-color:#dcdcdc;border-radius:3px}
+.app-wrapper{width:100%;max-width:400px;background-color:#fff;border-radius:12px;border:1px solid #e0e0e0;box-shadow:0 4px 16px rgba(0,0,0,.08);display:flex;flex-direction:column;height:fit-content;overflow:hidden}
+.status-bar{background:#333;color:#fff;font-size:12px;padding:6px 12px;display:flex;justify-content:space-between;align-items:center}
+.status-indicator{display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background-color:#f1c40f}
+.dot.online{background-color:#2ecc71;box-shadow:0 0 5px #2ecc71}
+.dot.error{background-color:#e74c3c}
+.header-section{padding:20px 16px;display:flex;flex-direction:column;gap:20px;border-bottom:1px solid #f0f0f0}
+.title-area{display:flex;align-items:center;justify-content:center;gap:12px}
+.flag-icon{width:56px;height:56px;border-radius:50%;border:1px solid #e0e0e0;display:flex;align-items:center;justify-content:center;background-color:#fff;overflow:hidden}
+.flag-icon svg{width:100%;height:100%}
+.title-text{font-size:20px;color:#555;font-weight:500}
+.period-control{display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-arrow{width:44px;height:36px;background-color:#f7f7f7;border:1px solid #e0e0e0;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#555;font-weight:bold;user-select:none}
+.btn-arrow:active{background-color:#ebebeb;transform:scale(.95)}
+.period-display{width:120px;height:36px;background-color:#f7f7f7;border:1px solid #e0e0e0;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#333;letter-spacing:1px;font-weight:500}
+.countdown-box{border:1px solid #e0e0e0;border-radius:8px;padding:16px 0;display:flex;align-items:center;justify-content:center;gap:8px}
+.countdown-label{font-size:18px;color:#333;margin-right:4px}
+.time-block{background-color:#db4e48;color:#fff;font-size:32px;font-weight:500;border-radius:6px;width:58px;height:64px;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;transition:.3s}
+.time-block.flash{background-color:#f39c12;transform:scale(1.05)}
+.time-unit{font-size:16px;color:#333;margin:0 4px}
+.result-box{background-color:#f7f7f7;border-radius:8px;padding:16px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+.num-block,.label-block{width:44px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;font-weight:bold}
+.bg-teal{background-color:#3eb5a6}
+.bg-red{background-color:#db4e48}
+.bg-blue{background-color:#4b89ff}
+.math-symbol{color:#555;font-size:18px;margin:0 2px}
+.divider{width:1px;height:28px;background-color:#dcdcdc;margin:0 8px}
+.table-section{display:flex;flex-direction:column}
+.top-tabs{display:flex;padding:12px;gap:8px;background-color:#fff}
+.tab-btn{flex:1;text-align:center;padding:10px 0;font-size:15px;color:#666;background-color:#fff;border:1px solid #e0e0e0;border-radius:6px;cursor:pointer;user-select:none}
+.tab-btn.active{background-color:#8c6b37;color:#fff;border-color:#8c6b37;font-weight:bold}
+.table-wrapper{width:100%;overflow-x:auto;height:380px}
+.trend-table{width:100%;border-collapse:collapse;text-align:center;font-size:14px;color:#333}
+.trend-table th{color:#888;font-weight:normal;padding:12px 4px;border-bottom:1px solid #f0f0f0;white-space:nowrap;position:sticky;top:0;background:#fff;z-index:10}
+.trend-table td{padding:10px 4px;border-bottom:1px solid #f0f0f0;white-space:nowrap}
+.trend-table tbody tr:nth-child(even){background-color:#fafafa}
+@keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+.new-row{animation:slideDown .3s ease-out}
+.interval-row td{font-weight:bold;color:#8c6b37;font-size:15px;background-color:#fff!important;position:sticky;top:41px;z-index:9;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.interval-row td:first-child{color:#333}
+.col-issue{text-align:left;padding-left:12px!important;color:#666}
+.col-value{font-weight:500;color:#333}
+.tag{display:inline-block;padding:3px 8px;border-radius:4px;color:#fff;font-size:13px;min-width:24px;text-align:center;font-weight:500}
+.tag-red{background-color:#db4e48}
+.tag-blue{background-color:#4b89ff}
+</style>
+</head>
+<body>
+<div class="app-wrapper">
+  <div class="status-bar">
+    <div class="status-indicator">
+      <div class="dot" id="net-dot"></div>
+      <span id="net-status">正在连接服务器...</span>
+    </div>
+    <span style="color:#aaa;">轮询中</span>
+  </div>
+  <div class="header-section">
+    <div class="title-area">
+      <div class="flag-icon">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="48" fill="#fff" stroke="#eee" stroke-width="2"/>
+          <path d="M 5 50 A 45 45 0 0 1 25 12 L 25 88 A 45 45 0 0 1 5 50 Z" fill="#d52b1e"/>
+          <path d="M 95 50 A 45 45 0 0 0 75 12 L 75 88 A 45 45 0 0 0 95 50 Z" fill="#d52b1e"/>
+          <path d="M50 20 L53 35 L60 30 L58 45 L70 42 L65 55 L75 60 L55 70 L55 80 L45 80 L45 70 L25 60 L35 55 L30 42 L42 45 L40 30 L47 35 Z" fill="#d52b1e"/>
+        </svg>
+      </div>
+      <div class="title-text">加拿大28</div>
+    </div>
+    <div class="period-control">
+      <div class="btn-arrow">&lt;</div>
+      <div class="period-display" id="current-period">---</div>
+      <div class="btn-arrow">&gt;</div>
+    </div>
+    <div class="countdown-box">
+      <span class="countdown-label">下一期：</span>
+      <div class="time-block" id="timer-min">00</div>
+      <span class="time-unit">分</span>
+      <div class="time-block" id="timer-sec">00</div>
+      <span class="time-unit">秒</span>
+    </div>
+    <div class="result-box" id="result-area">
+      <div style="color:#999;font-size:14px;">等待开奖数据...</div>
+    </div>
+  </div>
+  <div class="table-section">
+    <div class="top-tabs">
+      <div class="tab-btn">号码</div>
+      <div class="tab-btn active">走势</div>
+      <div class="tab-btn">统计</div>
+    </div>
+    <div class="table-wrapper">
+      <table class="trend-table">
+        <thead>
+          <tr>
+            <th>期号</th><th>值</th><th>大</th><th>小</th><th>单</th><th>双</th><th>大单</th><th>大双</th><th>小单</th><th>小双</th>
+          </tr>
+        </thead>
+        <tbody id="trend-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+/* ===== 配置：通过 Netlify 反向代理访问 ===== */
+var API_URL = '/api/kj.json?nbr=1&key=yu28_713cac8636df7311';
+var POLL_INTERVAL = 5000;
+var DRAW_CYCLE_SEC = 40;
+
+var currentPeriod = 0;
+var lastDrawNbr = null;
+var historyData = [];
+var countdown = DRAW_CYCLE_SEC;
+var timerObj = null;
+var pollObj = null;
+var isLoading = false;
+
+var dom = {
+  period: document.getElementById('current-period'),
+  timerMin: document.getElementById('timer-min'),
+  timerSec: document.getElementById('timer-sec'),
+  resultArea: document.getElementById('result-area'),
+  tbody: document.getElementById('trend-tbody'),
+  netDot: document.getElementById('net-dot'),
+  netStatus: document.getElementById('net-status')
+};
+
+function isBig(s){ return s >= 14; }
+function isOdd(s){ return s % 2 !== 0; }
+function setStatus(type, text){ dom.netDot.className = 'dot ' + type; dom.netStatus.innerText = text; }
+
+function updateResultUI(nums, sum){
+  var big = isBig(sum), odd = isOdd(sum), html = '';
+  for(var i = 0; i < nums.length; i++){
+    html += '<div class="num-block bg-teal">' + nums[i] + '</div>';
+    if(i < 2) html += '<span class="math-symbol">+</span>';
+  }
+  html += '<span class="math-symbol">=</span><div class="num-block ' + (big?'bg-red':'bg-blue') + '">' + sum + '</div>';
+  html += '<div class="divider"></div>';
+  html += '<div class="label-block ' + (big?'bg-red':'bg-blue') + '">' + (big?'大':'小') + '</div>';
+  html += '<div class="label-block ' + (odd?'bg-red':'bg-blue') + '">' + (odd?'单':'双') + '</div>';
+  dom.resultArea.innerHTML = html;
+}
+
+function calculateIntervals(){
+  var r = {big:0,small:0,odd:0,even:0,bOdd:0,bEven:0,sOdd:0,sEven:0};
+  var f = {big:0,small:0,odd:0,even:0,bOdd:0,bEven:0,sOdd:0,sEven:0};
+  for(var i = historyData.length - 1; i >= 0; i--){
+    var sum = historyData[i].sum, b = isBig(sum), o = isOdd(sum);
+    if(!f.big && b) f.big=1; else if(!f.big) r.big++;
+    if(!f.small && !b) f.small=1; else if(!f.small) r.small++;
+    if(!f.odd && o) f.odd=1; else if(!f.odd) r.odd++;
+    if(!f.even && !o) f.even=1; else if(!f.even) r.even++;
+    if(!f.bOdd && b && o) f.bOdd=1; else if(!f.bOdd) r.bOdd++;
+    if(!f.bEven && b && !o) f.bEven=1; else if(!f.bEven) r.bEven++;
+    if(!f.sOdd && !b && o) f.sOdd=1; else if(!f.sOdd) r.sOdd++;
+    if(!f.sEven && !b && !o) f.sEven=1; else if(!f.sEven) r.sEven++;
+    if(f.big && f.small && f.odd && f.even && f.bOdd && f.bEven && f.sOdd && f.sEven) break;
+  }
+  return r;
+}
+
+function renderTrendTable(isNew){
+  var iv = calculateIntervals();
+  var html = '<tr class="interval-row"><td>间隔</td><td></td><td>' + iv.big + '</td><td>' + iv.small + '</td><td>' + iv.odd + '</td><td>' + iv.even + '</td><td>' + iv.bOdd + '</td><td>' + iv.bEven + '</td><td>' + iv.sOdd + '</td><td>' + iv.sEven + '</td></tr>';
+  var list = historyData.slice().reverse().slice(0, 50);
+  for(var i = 0; i < list.length; i++){
+    var item = list[i], sum = item.sum, b = isBig(sum), o = isOdd(sum);
+    var cls = (isNew && i === 0) ? 'new-row' : '';
+    html += '<tr class="' + cls + '"><td class="col-issue">' + item.period + '</td><td class="col-value">' + sum + '</td>';
+    html += '<td>' + (b ? '<span class="tag tag-red">大</span>' : '') + '</td>';
+    html += '<td>' + (b ? '' : '<span class="tag tag-blue">小</span>') + '</td>';
+    html += '<td>' + (o ? '<span class="tag tag-blue">单</span>' : '') + '</td>';
+    html += '<td>' + (o ? '' : '<span class="tag tag-red">双</span>') + '</td>';
+    html += '<td>' + ((b && o) ? '<span class="tag tag-red">大单</span>' : '') + '</td>';
+    html += '<td>' + ((b && !o) ? '<span class="tag tag-red">大双</span>' : '') + '</td>';
+    html += '<td>' + ((!b && o) ? '<span class="tag tag-blue">小单</span>' : '') + '</td>';
+    html += '<td>' + ((!b && !o) ? '<span class="tag tag-red">小双</span>' : '') + '</td></tr>';
+  }
+  dom.tbody.innerHTML = html;
+}
+
+function resetCountdown(total){
+  if(timerObj) clearInterval(timerObj);
+  countdown = total;
+  function upd(){
+    dom.timerMin.innerText = String(Math.floor(countdown / 60)).padStart(2, '0');
+    dom.timerSec.innerText = String(countdown % 60).padStart(2, '0');
+  }
+  upd();
+  timerObj = setInterval(function(){
+    if(countdown > 0){
+      countdown--; upd();
+      if(countdown <= 5) dom.timerSec.classList.add('flash');
+      else dom.timerSec.classList.remove('flash');
+    } else {
+      clearInterval(timerObj);
+      dom.timerSec.classList.remove('flash');
+      fetchLatestDrawData();
+    }
+  }, 1000);
+}
+
+function parseCountdownToSec(s){
+  if(!s) return DRAW_CYCLE_SEC;
+  var p = s.split(':');
+  if(p.length !== 2) return DRAW_CYCLE_SEC;
+  return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+}
+
+function fetchLatestDrawData(){
+  if(isLoading) return;
+  isLoading = true;
+  setStatus('', '拉取数据中...');
+
+  fetch(API_URL, { method: 'GET' })
+    .then(function(res){
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(function(data){
+      if(!data.data || !data.data.length) throw new Error('data为空');
+      var latest = data.data[0], newNbr = latest.nbr, numStr = latest.number;
+      if(!newNbr || !numStr) throw new Error('缺少字段');
+
+      setStatus('online', '数据连接正常');
+      isLoading = false;
+
+      if(data.countdown){
+        var rem = parseCountdownToSec(data.countdown);
+        if(Math.abs(rem - countdown) > 2) resetCountdown(rem);
+      }
+
+      if(newNbr === lastDrawNbr) return;
+
+      lastDrawNbr = newNbr;
+      currentPeriod = parseInt(newNbr, 10);
+
+      var m = numStr.match(/^(\d+)\+(\d+)\+(\d+)=(\d+)$/);
+      if(!m) throw new Error('号码格式异常:' + numStr);
+      var nums = [parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10)];
+      var sum = parseInt(m[4],10);
+
+      dom.period.innerText = String(currentPeriod + 1);
+      updateResultUI(nums, sum);
+      historyData.push({period:newNbr, nums:nums, sum:sum});
+      renderTrendTable(true);
+
+      if(!data.countdown) resetCountdown(DRAW_CYCLE_SEC);
+    })
+    .catch(function(err){
+      isLoading = false;
+      console.error('拉取失败:', err);
+      setStatus('error', '获取失败 (' + err.message + ')');
+      dom.resultArea.innerHTML = '<div style="color:#e74c3c;font-size:13px;line-height:1.7;text-align:center;"><b>数据获取失败</b><br>错误：' + err.message + '</div>';
+      setTimeout(fetchLatestDrawData, 10000);
+    });
+}
+
+function init(){
+  fetchLatestDrawData();
+  pollObj = setInterval(fetchLatestDrawData, POLL_INTERVAL);
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
