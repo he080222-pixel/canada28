@@ -61,7 +61,7 @@ body{background-color:#f0f2f5;display:flex;justify-content:center;padding:20px 1
   <div class="status-bar">
     <div class="status-indicator">
       <div class="dot" id="net-dot"></div>
-      <span id="net-status">正在连接服务器...</span>
+      <span id="net-status">正在读取数据...</span>
     </div>
     <span style="color:#aaa;">本地模拟</span>
   </div>
@@ -202,7 +202,6 @@ function resetCountdown(total){
     } else {
       clearInterval(timerObj);
       dom.timerSec.classList.remove('flash');
-      // 倒计时结束，触发开奖
       generateMockData();
     }
   }, 1000);
@@ -213,7 +212,6 @@ function generateMockData(){
   setStatus('', '正在开奖...');
   
   setTimeout(function(){
-    // 期号递增
     if (!lastDrawNbr) {
         lastDrawNbr = "3496370";
     } else {
@@ -221,31 +219,57 @@ function generateMockData(){
     }
     currentPeriod = parseInt(lastDrawNbr, 10);
     
-    // 随机生成 3 个 0-9 的号码
     var n1 = Math.floor(Math.random() * 10);
     var n2 = Math.floor(Math.random() * 10);
     var n3 = Math.floor(Math.random() * 10);
     var sum = n1 + n2 + n3;
     var nums = [n1, n2, n3];
 
-    // 更新界面
     setStatus('online', '模拟数据正常');
-    dom.period.innerText = String(currentPeriod + 1); // 下一期
+    dom.period.innerText = String(currentPeriod + 1); // 显示下一期
     updateResultUI(nums, sum);
 
-    // 存入历史记录并渲染走势
+    // 存入历史记录
     historyData.push({period:lastDrawNbr, nums:nums, sum:sum});
-    renderTrendTable(true);
+    
+    // === 关键：把最新数据保存到手机本地 ===
+    // 为了防止存太多撑爆内存，最多只保留最近 200 期
+    if (historyData.length > 200) {
+        historyData = historyData.slice(-200); 
+    }
+    localStorage.setItem('c28_history', JSON.stringify(historyData));
+    localStorage.setItem('c28_lastNbr', lastDrawNbr);
 
-    // 重置倒计时进入下一轮
+    renderTrendTable(true);
     resetCountdown(DRAW_CYCLE_SEC);
-  }, 500); // 模拟 0.5 秒网络延迟
+  }, 500); 
 }
 
 // 启动
 window.onload = function(){
-  // 初始先开一期奖
-  generateMockData();
+  // === 关键：读取手机本地的历史数据 ===
+  var savedHistory = localStorage.getItem('c28_history');
+  var savedNbr = localStorage.getItem('c28_lastNbr');
+
+  if (savedHistory && savedNbr) {
+      // 如果以前存过，就读出来直接显示
+      historyData = JSON.parse(savedHistory);
+      lastDrawNbr = savedNbr;
+      currentPeriod = parseInt(lastDrawNbr, 10);
+      
+      // 恢复上一次的号码展示
+      var lastItem = historyData[historyData.length - 1];
+      dom.period.innerText = String(currentPeriod + 1);
+      updateResultUI(lastItem.nums, lastItem.sum);
+      renderTrendTable(false);
+      setStatus('online', '已恢复本地数据');
+      
+      // 开始倒计时，准备下一期
+      resetCountdown(DRAW_CYCLE_SEC);
+  } else {
+      // 如果没存过，就立刻开始第一局模拟
+      generateMockData();
+  }
 };
 </script>
 </body>
