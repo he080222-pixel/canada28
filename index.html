@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>加拿大28</title>
+<title>加拿大28 - 模拟演示版</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Yahei",sans-serif}
 body{background-color:#f0f2f5;display:flex;justify-content:center;padding:20px 10px;min-height:100vh}
@@ -63,7 +63,7 @@ body{background-color:#f0f2f5;display:flex;justify-content:center;padding:20px 1
       <div class="dot" id="net-dot"></div>
       <span id="net-status">正在连接服务器...</span>
     </div>
-    <span style="color:#aaa;">轮询中</span>
+    <span style="color:#aaa;">本地模拟</span>
   </div>
   <div class="header-section">
     <div class="title-area">
@@ -112,9 +112,7 @@ body{background-color:#f0f2f5;display:flex;justify-content:center;padding:20px 1
   </div>
 </div>
 <script>
-/* ===== 配置：通过 Netlify 反向代理访问 ===== */
-var API_URL = '/api/kj.json?nbr=1&key=yu28_713cac8636df7311';
-var POLL_INTERVAL = 5000;
+/* ===== 模拟配置 ===== */
 var DRAW_CYCLE_SEC = 40;
 
 var currentPeriod = 0;
@@ -122,8 +120,6 @@ var lastDrawNbr = null;
 var historyData = [];
 var countdown = DRAW_CYCLE_SEC;
 var timerObj = null;
-var pollObj = null;
-var isLoading = false;
 
 var dom = {
   period: document.getElementById('current-period'),
@@ -206,73 +202,51 @@ function resetCountdown(total){
     } else {
       clearInterval(timerObj);
       dom.timerSec.classList.remove('flash');
-      fetchLatestDrawData();
+      // 倒计时结束，触发开奖
+      generateMockData();
     }
   }, 1000);
 }
 
-function parseCountdownToSec(s){
-  if(!s) return DRAW_CYCLE_SEC;
-  var p = s.split(':');
-  if(p.length !== 2) return DRAW_CYCLE_SEC;
-  return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+// ======== 核心模拟开奖数据生成器 ========
+function generateMockData(){
+  setStatus('', '正在开奖...');
+  
+  setTimeout(function(){
+    // 期号递增
+    if (!lastDrawNbr) {
+        lastDrawNbr = "3496370";
+    } else {
+        lastDrawNbr = (parseInt(lastDrawNbr) + 1).toString();
+    }
+    currentPeriod = parseInt(lastDrawNbr, 10);
+    
+    // 随机生成 3 个 0-9 的号码
+    var n1 = Math.floor(Math.random() * 10);
+    var n2 = Math.floor(Math.random() * 10);
+    var n3 = Math.floor(Math.random() * 10);
+    var sum = n1 + n2 + n3;
+    var nums = [n1, n2, n3];
+
+    // 更新界面
+    setStatus('online', '模拟数据正常');
+    dom.period.innerText = String(currentPeriod + 1); // 下一期
+    updateResultUI(nums, sum);
+
+    // 存入历史记录并渲染走势
+    historyData.push({period:lastDrawNbr, nums:nums, sum:sum});
+    renderTrendTable(true);
+
+    // 重置倒计时进入下一轮
+    resetCountdown(DRAW_CYCLE_SEC);
+  }, 500); // 模拟 0.5 秒网络延迟
 }
 
-function fetchLatestDrawData(){
-  if(isLoading) return;
-  isLoading = true;
-  setStatus('', '拉取数据中...');
-
-  fetch(API_URL, { method: 'GET' })
-    .then(function(res){
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    })
-    .then(function(data){
-      if(!data.data || !data.data.length) throw new Error('data为空');
-      var latest = data.data[0], newNbr = latest.nbr, numStr = latest.number;
-      if(!newNbr || !numStr) throw new Error('缺少字段');
-
-      setStatus('online', '数据连接正常');
-      isLoading = false;
-
-      if(data.countdown){
-        var rem = parseCountdownToSec(data.countdown);
-        if(Math.abs(rem - countdown) > 2) resetCountdown(rem);
-      }
-
-      if(newNbr === lastDrawNbr) return;
-
-      lastDrawNbr = newNbr;
-      currentPeriod = parseInt(newNbr, 10);
-
-      var m = numStr.match(/^(\d+)\+(\d+)\+(\d+)=(\d+)$/);
-      if(!m) throw new Error('号码格式异常:' + numStr);
-      var nums = [parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10)];
-      var sum = parseInt(m[4],10);
-
-      dom.period.innerText = String(currentPeriod + 1);
-      updateResultUI(nums, sum);
-      historyData.push({period:newNbr, nums:nums, sum:sum});
-      renderTrendTable(true);
-
-      if(!data.countdown) resetCountdown(DRAW_CYCLE_SEC);
-    })
-    .catch(function(err){
-      isLoading = false;
-      console.error('拉取失败:', err);
-      setStatus('error', '获取失败 (' + err.message + ')');
-      dom.resultArea.innerHTML = '<div style="color:#e74c3c;font-size:13px;line-height:1.7;text-align:center;"><b>数据获取失败</b><br>错误：' + err.message + '</div>';
-      setTimeout(fetchLatestDrawData, 10000);
-    });
-}
-
-function init(){
-  fetchLatestDrawData();
-  pollObj = setInterval(fetchLatestDrawData, POLL_INTERVAL);
-}
-
-window.onload = init;
+// 启动
+window.onload = function(){
+  // 初始先开一期奖
+  generateMockData();
+};
 </script>
 </body>
 </html>
